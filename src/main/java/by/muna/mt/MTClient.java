@@ -2,6 +2,7 @@ package by.muna.mt;
 
 import by.muna.mt.by.muna.mt.keys.MTAuthKey;
 import by.muna.mt.crypto.Encryption;
+import by.muna.mt.crypto.Hashes;
 import by.muna.mt.logging.IMTClientLogger;
 import by.muna.mt.messages.IMTMessageStatusListener;
 import by.muna.mt.storage.ISeqNoPoller;
@@ -9,6 +10,7 @@ import by.muna.mt.storage.IMTStorage;
 import by.muna.mt.tl.*;
 import by.muna.tl.*;
 import by.muna.util.BufferUtil;
+import by.muna.util.BytesUtil;
 import by.muna.util.ChecksumUtil;
 import by.muna.util.StringUtil;
 import by.muna.yasly.*;
@@ -825,10 +827,25 @@ public class MTClient {
             messageId = decryptedBuffer.getLong();
             int seqNo = decryptedBuffer.getInt();
 
-            this.storage.serverSalt(authKeyId, sessionId, serverSalt);
-
             // message length
-            decryptedBuffer.getInt();
+            int messageLength = decryptedBuffer.getInt();
+
+            byte[] actualMessageKey = BytesUtil.slice(Hashes.SHA1(
+                decrypted,
+                0,
+                8 + 8 + 8 + 4 + 4 + messageLength
+            ), 4, 16);
+
+            if (!BytesUtil.equals(messageKey, actualMessageKey)) {
+                this.logger.undefinedBehavior(
+                    this, "Wrong message key",
+                    // variables containing trash, but log it
+                    authKeyId, sessionId, messageId, seqNo
+                );
+                return;
+            }
+
+            this.storage.serverSalt(authKeyId, sessionId, serverSalt);
 
             ITypedData data = TL.parse(this.schema, decryptedBuffer);
 
@@ -856,7 +873,8 @@ public class MTClient {
             }
         }
 
-        this.storage.syncTime((int) (messageId >>> 32));
+        // TODO
+        //this.storage.syncTime((int) (messageId >>> 32));
     }
 
     public InetSocketAddress getAddress() {
