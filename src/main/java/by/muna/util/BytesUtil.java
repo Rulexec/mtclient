@@ -1,5 +1,6 @@
 package by.muna.util;
 
+import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 
 public class BytesUtil {
@@ -103,6 +104,14 @@ public class BytesUtil {
             return result;
         } else {
             return bytes;
+        }
+    }
+
+    public static byte[] toUTF8(String string) {
+        try {
+            return string.getBytes("UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException("UTF-8 not supported.");
         }
     }
 }

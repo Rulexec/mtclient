@@ -143,6 +143,9 @@ public class MTClient {
     public void setStorage(IMTStorage storage) {
         this.storage = storage;
     }
+    public IMTStorage getStorage() {
+        return this.storage;
+    }
 
     public void setLogger(IMTClientLogger logger) {
         this.logger = logger;
@@ -288,7 +291,11 @@ public class MTClient {
                                 ITypedData messageTl = new TypedData(MTMessage.CONSTRUCTOR)
                                     .setTypedData(MTMessage.msgId, messageId)
                                     .setTypedData(MTMessage.seqno, seqNo)
-                                    .setTypedData(MTMessage.bytes, messageData.calcSize())
+                                    .setTypedData(MTMessage.bytes,
+                                        new TL(
+                                            messageData.getConstructor().getType(),
+                                            messageData
+                                        ).calcSize())
                                     .setTypedData(MTMessage.body, messageData);
 
                                 messages[i++] = messageTl;
@@ -328,7 +335,7 @@ public class MTClient {
 
                         long serverSalt = MTClient.this.storage.getServerSalt(authKeyId, sessionId);
                         long messageId = MTClient.this.pollMessageId();
-                        int seqNo = seqNoPoller.pollSeqNo(false);
+                        int seqNo = seqNoPoller.pollSeqNo(meaningful);
 
                         if (count == 1 && haveMeaningfulForContainer) {
                             MTProtoMessage message = messagesToSend.peek();
@@ -559,25 +566,7 @@ public class MTClient {
         boolean consumed = true;
 
         switch (data.getId()) {
-        /*case MTRpcResult.CONSTRUCTOR_ID:
-            long rpcReqMsgId = data.getTypedData(MTRpcResult.reqMsgId);
-            int rpcId = this.storage.getRpcIdByMessageId(rpcReqMsgId);
-
-            ITypedData resultObject = data.getTypedData(MTRpcResult.result);
-
-            if (resultObject.getId() != MTRpcError.CONSTRUCTOR_ID) {
-                this.rpcResponse(rpcId, resultObject);
-            } else {
-                // resultObject is MTRpcError
-
-                this.rpcError(
-                    rpcId,
-                    resultObject.<Integer>getTypedData(MTRpcError.errorCode),
-                    BytesUtil.fromUTF8(resultObject.<byte[]>getTypedData(MTRpcError.errorMessage))
-                );
-            }
-
-            break;*/
+        case MTRpcResult.CONSTRUCTOR_ID: consumed = false; break;
         case MTMsgContainer.CONSTRUCTOR_ID:
             Object[] containerMessages = data.<ITypedData>getTypedData(MTMsgContainer.messages)
                 .getTypedData(0);
