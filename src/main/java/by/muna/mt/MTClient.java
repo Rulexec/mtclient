@@ -561,6 +561,15 @@ public class MTClient {
         this.authKeyGenerators.remove(generator);
     }
 
+    public void confirmMessage(long authKeyId, long sessionId, long messageId) {
+        Map<Long, Queue<Long>> sessionAcksMap = this.acks.get(authKeyId);
+        Queue<Long> acksQueue = sessionAcksMap.get(sessionId);
+
+        acksQueue.add(messageId);
+
+        this.createAckTimer(authKeyId, sessionId);
+    }
+
     private void onData(long authKeyId, long sessionId, long messageId, int seqNo, ITypedData data) {
         Map<Long, Queue<Long>> sessionAcksMap = this.acks.get(authKeyId);
         Queue<Long> acksQueue = sessionAcksMap.get(sessionId);
@@ -570,14 +579,15 @@ public class MTClient {
             sessionAcksMap.put(sessionId, acksQueue);
         }
 
-        if (seqNo % 2 == 1) {
-            acksQueue.add(messageId);
-        }
+        boolean sendAck = (seqNo % 2 == 1);
 
         boolean consumed = true;
 
         switch (data.getId()) {
-        case MTRpcResult.CONSTRUCTOR_ID: consumed = false; break;
+        case MTRpcResult.CONSTRUCTOR_ID:
+            consumed = false;
+            sendAck = false; // because acks for rpc-answers only by demand
+            break;
         case MTMsgContainer.CONSTRUCTOR_ID:
             Object[] containerMessages = data.<ITypedData>getTypedData(MTMsgContainer.messages)
                 .getTypedData(0);
@@ -645,6 +655,10 @@ public class MTClient {
             );
 
             throw new RuntimeException("Unsupported packet type: " + data.getConstructor().getRootName());
+        }
+
+        if (sendAck) {
+            acksQueue.add(messageId);
         }
 
         if (!consumed) {
