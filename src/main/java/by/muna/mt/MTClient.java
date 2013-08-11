@@ -524,7 +524,9 @@ public class MTClient {
 
         this.socketController = this.socketThread.connect(this.address);
 
-        this.socketController.setOnConnectError(new IConnectErrorListener() {
+        this.socketController.setConnectionListener(new IConnectionListener() {
+            @Override public void onConnected(SocketController controller) {}
+
             @Override
             public void onConnectError(SocketController controller, boolean graceful) {
                 MTClient.this.connectListener.onConnectError(MTClient.this, graceful);
