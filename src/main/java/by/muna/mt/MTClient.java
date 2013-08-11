@@ -112,7 +112,7 @@ public class MTClient {
     private IMTStorage storage;
     private IMTClientLogger logger;
 
-    private IMTConnectErrorListener connectListener;
+    private IMTConnectionListener connectListener;
     private IMTDataListener dataListener;
 
     private boolean readingSize = true;
@@ -186,7 +186,7 @@ public class MTClient {
         return id;
     }
 
-    public void setOnConnectionError(IMTConnectErrorListener connectListener) {
+    public void setConnectionListener(IMTConnectionListener connectListener) {
         this.connectListener = connectListener;
     }
 
@@ -312,7 +312,11 @@ public class MTClient {
                                 messages[count] = new TypedData(MTMessage.CONSTRUCTOR)
                                     .setTypedData(MTMessage.msgId, messageId)
                                     .setTypedData(MTMessage.seqno, seqNoPoller.pollSeqNo(false))
-                                    .setTypedData(MTMessage.bytes, pingBody.calcSize())
+                                    .setTypedData(MTMessage.bytes,
+                                        new TL(
+                                            MTPing.TYPE,
+                                            pingBody
+                                        ).calcSize())
                                     .setTypedData(MTMessage.body, pingBody);
                             }
 
@@ -525,7 +529,9 @@ public class MTClient {
         this.socketController = this.socketThread.connect(this.address);
 
         this.socketController.setConnectionListener(new IConnectionListener() {
-            @Override public void onConnected(SocketController controller) {}
+            @Override public void onConnected(SocketController controller) {
+                MTClient.this.connectListener.onConnected(MTClient.this);
+            }
 
             @Override
             public void onConnectError(SocketController controller, boolean graceful) {
@@ -539,6 +545,9 @@ public class MTClient {
                 MTClient.this.onSocketData(readable);
             }
         });
+    }
+    public void disconnect(boolean graceful) {
+        this.socketController.disconnect(graceful);
     }
 
     public void generateAuthKey(IMTAuthKeyListener listener) {
