@@ -565,6 +565,11 @@ public class MTClient {
         Map<Long, Queue<Long>> sessionAcksMap = this.acks.get(authKeyId);
         Queue<Long> acksQueue = sessionAcksMap.get(sessionId);
 
+        if (acksQueue == null) {
+            acksQueue = new LinkedList<Long>();
+            sessionAcksMap.put(sessionId, acksQueue);
+        }
+
         acksQueue.add(messageId);
 
         this.createAckTimer(authKeyId, sessionId);
